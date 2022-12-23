@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+	  <TargetFramework>net6.0-windows</TargetFramework>
+	  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	  <OutputType>Library</OutputType>
+	  <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Properties\launchSettings.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Properties\launchSettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CTFAK 2.2\Core\CTFAK.Core\CTFAK.Core.csproj" />
+  </ItemGroup>
+</Project>
