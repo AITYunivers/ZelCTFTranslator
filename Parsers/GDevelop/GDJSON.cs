@@ -43,7 +43,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             public bool useExternalSourceFiles = false;
             public string version = "1.0.0";
             public string name { get; set; }
-            public string description = "Ported from Clickteam Fusion using CTFAK 2.0";
+            public string description = "Decompiled using CTFAK 2.0 and ZelTranslator";
             public string author { get; set; }
             public int windowWidth { get; set; }
             public int windowHeight { get; set; }

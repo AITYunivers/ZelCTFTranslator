@@ -35,7 +35,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             var Parameters = new List<string>
             {
                 ObjectName, //Object Name
-                "AlterableValue" + GDevelopTranslator.AltCharacter(AlterableValue), //Alterable Value
+                "AlterableValue" + GDWriter.AltCharacter(AlterableValue), //Alterable Value
                 Modify, //Modifier
                 ToModify.ToString() //To Modify
             };
