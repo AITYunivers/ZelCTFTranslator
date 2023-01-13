@@ -9,11 +9,15 @@ using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using ZelCTFTranslator.Parsers.Game_Maker_Studio_2;
 using ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYPs;
+using ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYs;
+using System;
+using System.Threading;
 
 namespace ZelCTFTranslator.Parsers.GDevelop
 {
@@ -36,14 +40,11 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             int type = RandomNumberGenerator.GetInt32(0, 2);
             switch (type)
             {
-                case 0:
-                    newChar = (char)RandomNumberGenerator.GetInt32(48, 57);
+                case 0: // Numbers
+                    newChar = (char)RandomNumberGenerator.GetInt32(48, 58);
                     break;
-                case 1:
-                    newChar = (char)RandomNumberGenerator.GetInt32(65, 90);
-                    break;
-                case 2:
-                    newChar = (char)RandomNumberGenerator.GetInt32(97, 122);
+                case 1: // Letters
+                    newChar = (char)RandomNumberGenerator.GetInt32(97, 123);
                     break;
             }
             return newChar;
@@ -54,14 +55,14 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             var outName = gameData.name ?? "Unknown Game";
             outName = CleanString(outName);
             var outPath = $"Dumps\\{outName}\\GMS2";
-            Directory.CreateDirectory(outPath);
 
             var ProjectJSON = new ProjectYYP.RootObject();
-            ProjectJSON.name = gameData.name;
+            ProjectJSON.name = outName;
 
             // Object ID Generators 
             foreach (var obj in gameData.frameitems.Values)
             {
+                if (GMS2ObjectIDs.ObjectIDs.Keys.Contains(obj.handle)) continue;
                 var str = "";
                 for (int i = 0; i < 8; i++)
                     str += RandomChar();
@@ -131,16 +132,22 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             var Resources = new List<ProjectYYP.Resource>();
             foreach (var Frame in gameData.frames)
             {
+                Logger.Log("Loading Frame " + Frame.name);
                 var newRoom = new RoomYY.RootObject();
                 newRoom.name = CleanString(Frame.name);
 
-                foreach (var View in newRoom.views)
+                var Views = new List<RoomYY.View>();
+                for (int a = 0; a < 8; a++)
                 {
-                    View.wview = Frame.width;
-                    View.hview = Frame.height;
-                    View.wport = Frame.width;
-                    View.hport = Frame.height;
+                    var newView = new RoomYY.View();
+                    newView.wview = Frame.width;
+                    newView.hview = Frame.height;
+                    newView.wport = Frame.width;
+                    newView.hport = Frame.height;
+                    Views.Add(newView);
                 }
+                newRoom.views = Views.ToArray();
+                Views.Clear();
 
                 newRoom.roomSettings.Width = Frame.width;
                 newRoom.roomSettings.Height = Frame.height;
@@ -166,17 +173,20 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                     newLayer.visible = Layer.Flags["Visible"];
 
                     var LayerInstances = new List<RoomYY.Instance>();
-                    foreach (var LayerIntance in Frame.objects)
+                    foreach (var LayerInstance in Frame.objects)
                     {
-                        if (LayerIntance.layer == layer)
+                        if (LayerInstance.layer == layer - 1)
                         {
-                            var instance = gameData.frameitems[LayerIntance.handle];
+                            var instance = gameData.frameitems[LayerInstance.objectInfo];
 
                             var newInstance = new RoomYY.Instance();
                             newInstance.name = $"inst_{GMS2ObjectIDs.ObjectIDs[instance.handle]}";
-                            
+                            newInstance.x = LayerInstance.x;
+                            newInstance.y = LayerInstance.y;
+                            newInstance.colour = ((long)instance.blend * 16777216) + 16777215; 
+
                             var objectID = new RoomYY.ObjectID();
-                            objectID.name = CleanString(instance.name);
+                            objectID.name = CleanString(instance.name) + " - " + instance.handle;
                             objectID.path = $"objects/{objectID.name}/{objectID.name}.yy";
                             newInstance.objectId = objectID;
                             LayerInstances.Add(newInstance);
@@ -184,6 +194,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                             var instanceCreation = new RoomYY.InstanceCreationOrder();
                             instanceCreation.name = newInstance.name;
                             instanceCreation.path = $"rooms/{newRoom.name}/{newRoom.name}.yy";
+                            instances.Add(instanceCreation);
                         }
                     }
 
@@ -192,6 +203,19 @@ namespace ZelCTFTranslator.Parsers.GDevelop
 
                     roomLayers.Add(newLayer);
                 }
+
+                var newRoomLayers = new List<RoomYY.Layer>();
+
+                for (int ly = 1; ly <= roomLayers.Count; ly++)
+                {
+                    var roomLayer = roomLayers[roomLayers.Count - ly];
+                    newRoomLayers.Add(roomLayer);
+                }
+
+                newRoom.instanceCreationOrder = instances.ToArray();
+                newRoom.layers = newRoomLayers.ToArray();
+                instances.Clear();
+                roomLayers.Clear();
 
                 Rooms.Add(newRoom);
 
@@ -209,22 +233,176 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                 newRoomResID.name = newRoom.name;
                 newRoomResID.path = $"rooms/{newRoom.name}/{newRoom.name}.yy";
                 newRoomRes.id = newRoomResID;
+                newRoomRes.order = FrameOrder;
+                FrameOrder++;
                 Resources.Add(newRoomRes);
             }
+
+            var Sprites = new List<SpriteYY.RootObject>();
+            foreach (var obj in gameData.frameitems.Values)
+            {
+                if (obj.properties is ObjectCommon common)
+                {
+                    if (common.Animations == null ||
+                        common.Animations.AnimationDict == null ||
+                        common.Animations.AnimationDict.Count == 0)
+                        continue;
+                    for (int ad = 0; ad < common.Animations.AnimationDict.Count; ad++)
+                    {
+                        if (common.Animations.AnimationDict[ad].DirectionDict == null ||
+                            common.Animations.AnimationDict[ad].DirectionDict.Count == 0)
+                            continue;
+                        for (int dd = 0; dd < common.Animations.AnimationDict[ad].DirectionDict.Count; dd++)
+                        {
+                            if (common.Animations.AnimationDict[ad].DirectionDict[dd].Frames.Count == 0) continue;
+                            var newSprite = new SpriteYY.RootObject();
+                            var imgs = common.Animations.AnimationDict[ad].DirectionDict[dd].Frames;
+                            var baseimg = gameData.Images.Items[imgs[0]];
+                            newSprite.name = $"Sprite {imgs[0]} {ad}-{dd}";
+
+                            newSprite.bbox_right = baseimg.width - 1;
+                            newSprite.bbox_bottom = baseimg.height - 1;
+                            newSprite.width = baseimg.width;
+                            newSprite.height = baseimg.height;
+
+                            newSprite.frames = new SpriteYY.Frame[imgs.Count];
+
+                            for (int i = 0; i < imgs.Count; i++)
+                            {
+                                newSprite.frames[i] = new SpriteYY.Frame();
+                                newSprite.frames[i].name = Guid.NewGuid().ToString();
+                                newSprite.frames[i].ctfhandle = imgs[i];
+                            }
+
+                            var newSequence = new SpriteYY.Sequence();
+                            newSequence.name = $"Sprite {obj.handle} {ad}-{dd}";
+                            newSequence.playbackSpeed = common.Animations.AnimationDict[ad].DirectionDict[dd].MinSpeed;
+                            newSequence.playbackSpeed = newSequence.playbackSpeed / 100.0f * 60.0f;
+                            newSequence.length = imgs.Count;
+                            newSequence.backdropWidth = gameData.header.WindowWidth;
+                            newSequence.backdropHeight = gameData.header.WindowHeight;
+                            newSequence.xorigin = gameData.Images.Items[imgs[0]].HotspotX;
+                            newSequence.yorigin = gameData.Images.Items[imgs[0]].HotspotY;
+
+                            var seqFrames = new List<SpriteYY.KeyFrame>();
+                            int fi = 0;
+                            foreach (var frame in newSprite.frames)
+                            {
+                                var newKeyFrame = new SpriteYY.KeyFrame();
+                                newKeyFrame.id = Guid.NewGuid().ToString();
+                                newKeyFrame.Key = fi;
+                                newKeyFrame.Channels.ZEROREPLACE.Id.name = frame.name;
+                                newKeyFrame.Channels.ZEROREPLACE.Id.path = $"sprites/{newSprite.name}/{newSprite.name}.yy";
+                                seqFrames.Add(newKeyFrame);
+                                fi++;
+                            }
+                            newSequence.tracks[0].keyframes.Keyframes = seqFrames.ToArray();
+
+                            newSprite.sequence = newSequence;
+                            newSprite.layers[0].name = Guid.NewGuid().ToString();
+                            Sprites.Add(newSprite);
+
+                            var newSpriteRes = new ProjectYYP.Resource();
+                            var newSpriteResID = new ProjectYYP.ResourceID();
+
+                            newSpriteResID.name = newSprite.name;
+                            newSpriteResID.path = $"sprites/{newSprite.name}/{newSprite.name}.yy";
+                            newSpriteRes.id = newSpriteResID;
+                            newSpriteRes.order = SpriteOrder;
+                            SpriteOrder++;
+                            Resources.Add(newSpriteRes);
+                        }
+                    }
+                }
+            }
+
+
+            var Objects = new List<ObjectYY.RootObject>();
+            foreach (var obj in gameData.frameitems.Values)
+            {
+                if (obj.properties is ObjectCommon common)
+                {
+                    if (common.Animations == null ||
+                        common.Animations.AnimationDict == null ||
+                        common.Animations.AnimationDict.Count == 0 ||
+                        common.Animations.AnimationDict[0].DirectionDict == null ||
+                        common.Animations.AnimationDict[0].DirectionDict.Count == 0 ||
+                        common.Animations.AnimationDict[0].DirectionDict[0].Frames.Count == 0) 
+                            continue;
+                    var imgs = common.Animations.AnimationDict[0].DirectionDict[0].Frames;
+
+                    var newObj = new ObjectYY.RootObject();
+                    newObj.name = CleanString(obj.name) + " - " + obj.handle;
+                    newObj.visible = common.NewFlags["VisibleAtStart"];
+                    newObj.spriteId.name = $"Sprite {imgs[0]} 0-0";
+                    newObj.spriteId.path = $"sprites/{newObj.spriteId.name}/{newObj.spriteId.name}.yy";
+                    Objects.Add(newObj);
+
+                    var newObjectRes = new ProjectYYP.Resource();
+                    var newObjectResID = new ProjectYYP.ResourceID();
+
+                    newObjectResID.name = newObj.name;
+                    newObjectResID.path = $"objects/{newObj.name}/{newObj.name}.yy";
+                    newObjectRes.id = newObjectResID;
+                    newObjectRes.order = ObjectOrder;
+                    ObjectOrder++;
+                    Resources.Add(newObjectRes);
+                }
+            }
+
+            ProjectJSON.AudioGroups = new ProjectYYP.AudioGroup[1];
+            ProjectJSON.TextureGroups = new ProjectYYP.TextureGroup[1];
+            ProjectJSON.AudioGroups[0] = new ProjectYYP.AudioGroup();
+            ProjectJSON.TextureGroups[0] = new ProjectYYP.TextureGroup();
 
             ProjectJSON.RoomOrderNodes = RoomOrderNodes.ToArray();
             ProjectJSON.resources = Resources.ToArray();
             RoomOrderNodes.Clear();
             Resources.Clear();
 
-            var WriteProjectJSON = JsonConvert.SerializeObject(ProjectJSON);
-            File.WriteAllText($"{outPath}\\{outName}.yyp", WriteProjectJSON);
+            WriteToFile(outPath, outName, gameData, ProjectJSON, Rooms, Sprites, Objects);
         }
 
-        public static void WriteToFile  (ProjectYYP.RootObject ProjectJSON,
-                                       List<RoomYY.RootObject> RoomJSONs)
+        public static void WriteToFile  (string outPath,
+                                         string outName,
+                                       GameData gameData,
+                          ProjectYYP.RootObject ProjectJSON,
+                        List<RoomYY.RootObject> RoomJSONs,
+                      List<SpriteYY.RootObject> SpriteJSONs,
+                      List<ObjectYY.RootObject> ObjectJSONs)
         {
+            if (Directory.Exists(outPath))
+                Directory.Delete(outPath, true);
 
+            var WriteProjectJSON = JsonConvert.SerializeObject(ProjectJSON);
+            Directory.CreateDirectory(outPath);
+            File.WriteAllText($"{outPath}\\{outName}.yyp", WriteProjectJSON);
+
+            foreach (var room in RoomJSONs)
+            {
+                var WriteRoomJSON = JsonConvert.SerializeObject(room);
+                Directory.CreateDirectory($"{outPath}\\rooms\\{room.name}");
+                File.WriteAllText($"{outPath}\\rooms\\{room.name}\\{room.name}.yy", WriteRoomJSON);
+            }
+
+            foreach (var spr in SpriteJSONs)
+            {
+                foreach (var frame in spr.frames)
+                {
+                    Directory.CreateDirectory($"{outPath}\\sprites\\{spr.name}\\layers\\{frame.name}");
+                    gameData.Images.Items[frame.ctfhandle].bitmap.Save($"{outPath}\\sprites\\{spr.name}\\layers\\{frame.name}\\{spr.layers[0].name}.png");
+                    gameData.Images.Items[frame.ctfhandle].bitmap.Save($"{outPath}\\sprites\\{spr.name}\\{frame.name}.png");
+                }
+                var WriteSpriteJSON = JsonConvert.SerializeObject(spr).Replace("ZEROREPLACE", "0");
+                File.WriteAllText($"{outPath}\\sprites\\{spr.name}\\{spr.name}.yy", WriteSpriteJSON);
+            }
+
+            foreach (var obj in ObjectJSONs)
+            {
+                var WriteObjJSON = JsonConvert.SerializeObject(obj);
+                Directory.CreateDirectory($"{outPath}\\objects\\{obj.name}");
+                File.WriteAllText($"{outPath}\\objects\\{obj.name}\\{obj.name}.yy", WriteObjJSON);
+            }
         }
     }
 }

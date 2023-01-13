@@ -12,7 +12,7 @@ namespace ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYPs
             public bool isDnd = false;
             public float volume = 1.0f;
             public object parentRoom = null;
-            public View[] views = new View[8];
+            public View[] views { get; set; }
             public Layer[] layers { get; set; }
             public bool inheritLayers = false;
             public string creationCodeFile = "";
@@ -91,7 +91,7 @@ namespace ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYPs
             public ObjectID objectId { get; set; }
             public bool inheritCode = false;
             public bool hasCreationCode = false;
-            public long colour = 4294967295;
+            public long colour { get; set; }
             public float rotation = 0.0f;
             public float scaleX = 1.0f;
             public float scaleY = 1.0f;
@@ -101,8 +101,8 @@ namespace ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYPs
             public bool frozen = false;
             public bool ignore = false;
             public bool inheritItemSettings = false;
-            public float x = 0.0f;
-            public float y = 0.0f;
+            public float x { get; set; }
+            public float y { get; set; }
         }
 
         public class ObjectID

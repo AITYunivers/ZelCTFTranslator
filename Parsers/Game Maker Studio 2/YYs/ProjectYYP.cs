@@ -16,8 +16,8 @@ namespace ZelCTFTranslator.Parsers.Game_Maker_Studio_2
             public Configs configs = new Configs();
             public RoomOrderNode[] RoomOrderNodes { get; set; }
             public Folder[] Folders { get; set; }
-            public AudioGroup[] AudioGroups = new AudioGroup[1];
-            public TextureGroup[] TextureGroups = new TextureGroup[1];
+            public AudioGroup[] AudioGroups { get; set; }
+            public TextureGroup[] TextureGroups { get; set; }
             public IncludedFile[] IncludedFiles = new IncludedFile[0];
             public Metadata MetaData = new Metadata();
         }
