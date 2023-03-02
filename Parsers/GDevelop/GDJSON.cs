@@ -330,9 +330,9 @@ namespace ZelCTFTranslator.Parsers.GDevelop
 
         public class Layer
         {
-            public int ambientLightColorB = 32;
-            public int ambientLightColorG = 0;
-            public int ambientLightColorR = 0;
+            public int ambientLightColorB = 7126848;
+            public int ambientLightColorG = 6059824;
+            public int ambientLightColorR = 7697352;
             public bool followBaseLayerCamera { get; set; }
             public bool isLightingLayer = false;
             public string name { get; set; }

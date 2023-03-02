@@ -5,9 +5,12 @@ using CTFAK.CCN.Chunks.Objects;
 using CTFAK.Memory;
 using CTFAK.Utils;
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace ZelCTFTranslator.Parsers.GDevelop
 {
@@ -46,41 +49,69 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             var Resources = new GDJSON.Resources();
             var ListResources = new List<GDJSON.Resource>();
             if (gameData.Images != null)
+            {
+                Task[] tasks = new Task[gameData.Images.Items.Count];
+                int i = 0;
                 foreach (Image img in gameData.Images.Items.Values)
                 {
-                    var bmp = img.bitmap;
-                    bmp.Save($"{outPath}\\img{img.Handle}.png");
+                    var newTask = new Task(() =>
+                    {
+                        var bmp = img.bitmap;
+                        bmp.Save($"{outPath}\\img{img.Handle}.png");
 
-                    var res = new GDJSON.Resource();
-                    res.alwaysLoaded = false;
-                    res.file = $"img{img.Handle}.png";
-                    res.kind = "image";
-                    res.metadata = "";
-                    res.name = $"img{img.Handle}.png";
-                    res.smoothed = true;
-                    res.userAdded = true;
-                    ListResources.Add(res);
+                        var res = new GDJSON.Resource();
+                        res.alwaysLoaded = false;
+                        res.file = $"img{img.Handle}.png";
+                        res.kind = "image";
+                        res.metadata = "";
+                        res.name = $"img{img.Handle}.png";
+                        res.smoothed = true;
+                        res.userAdded = true;
+                        ListResources.Add(res);
+                    });
+                    tasks[i] = newTask;
+                    newTask.Start();
+                    i++;
                 }
+                foreach (var item in tasks)
+                {
+                    item.Wait();
+                }
+            }
             if (gameData.Sounds != null)
+            {
+                Task[] tasks = new Task[gameData.Sounds.Items.Count];
+                int i = 0;
                 foreach (SoundItem sound in gameData.Sounds.Items)
                 {
-                    var snddata = sound.Data;
-                    var sndext = ".wav";
-                    if (snddata[0] == 0xff || snddata[0] == 0x49)
-                        sndext = ".mp3";
-                    File.WriteAllBytes($"{outPath}\\{sound.Name}{sndext}", snddata);
+                    var newTask = new Task(() =>
+                    {
+                        var snddata = sound.Data;
+                        var sndext = ".wav";
+                        if (snddata[0] == 0xff || snddata[0] == 0x49)
+                            sndext = ".mp3";
+                        File.WriteAllBytes($"{outPath}\\{sound.Name}{sndext}", snddata);
 
-                    var res = new GDJSON.Resource();
-                    res.file = sound.Name + sndext;
-                    res.kind = "audio";
-                    res.metadata = "";
-                    res.name = sound.Name + sndext;
-                    res.preloadAsMusic = false;
-                    res.preloadAsSound = true;
-                    res.preloadInCache = false;
-                    res.userAdded = true;
-                    ListResources.Add(res);
+                        var res = new GDJSON.Resource();
+                        res.file = sound.Name + sndext;
+                        res.kind = "audio";
+                        res.metadata = "";
+                        res.name = sound.Name + sndext;
+                        res.preloadAsMusic = false;
+                        res.preloadAsSound = true;
+                        res.preloadInCache = false;
+                        res.userAdded = true;
+                        ListResources.Add(res);
+                    });
+                    tasks[i] = newTask;
+                    newTask.Start();
+                    i++;
                 }
+                foreach (var item in tasks)
+                {
+                    item.Wait();
+                }
+            }
             Resources.resources = ListResources.ToArray();
 
             var Scenes = new List<GDJSON.Layout>();
@@ -91,14 +122,26 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                 newScene.mangledName = rgx.Replace(frame.name, "").Replace(" ", "");
                 newScene.name = frame.name;
                 var sceneLayers = new List<GDJSON.Layer>();
+                // Base Layer
+                var BaseLayer = new GDJSON.Layer();
+                BaseLayer.ambientLightColorB = 0;
+                BaseLayer.ambientLightColorG = 7988432;
+                BaseLayer.ambientLightColorR = 16;
+                BaseLayer.followBaseLayerCamera = false;
+                BaseLayer.name = "";
+                BaseLayer.visibility = true;
+                BaseLayer.cameras = new GDJSON.Camera[1];
+                BaseLayer.cameras[0] = new();
+                sceneLayers.Add(BaseLayer);
+
+                // Frame Layers
                 foreach (var layer in frame.layers.Items)
                 {
                     var newLayer = new GDJSON.Layer();
                     newLayer.followBaseLayerCamera = layer.XCoeff != 0 && layer.YCoeff != 0;
                     newLayer.name = layer.Name;
                     newLayer.visibility = !layer.Flags["ToHide"];
-                    newLayer.cameras = new GDJSON.Camera[1];
-                    newLayer.cameras[0] = new();
+                    newLayer.cameras = new GDJSON.Camera[0];
                     sceneLayers.Add(newLayer);
                 }
                 var sceneObjects = new List<GDJSON.Object>();
@@ -119,7 +162,8 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                             //Actives
                             if (Settings.twofiveplus && objCommon.Identifier == "SPRI" || !Settings.twofiveplus && objCommon.Parent.ObjectType == 2)
                             {
-                                if (objCommon.Animations.AnimationDict == null ||
+                                if (objCommon.Animations == null ||
+                                    objCommon.Animations.AnimationDict == null ||
                                     objCommon.Animations.AnimationDict[0].DirectionDict == null) continue;
                                 newObj.name = objItem.name;
                                 newObj.type = "Sprite";

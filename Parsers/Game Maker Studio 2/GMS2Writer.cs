@@ -18,6 +18,7 @@ using ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYPs;
 using ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYs;
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace ZelCTFTranslator.Parsers.GDevelop
 {
@@ -378,30 +379,82 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             Directory.CreateDirectory(outPath);
             File.WriteAllText($"{outPath}\\{outName}.yyp", WriteProjectJSON);
 
+            Task[] tasks = new Task[RoomJSONs.Count];
+            int i = 0;
             foreach (var room in RoomJSONs)
             {
-                var WriteRoomJSON = JsonConvert.SerializeObject(room);
-                Directory.CreateDirectory($"{outPath}\\rooms\\{room.name}");
-                File.WriteAllText($"{outPath}\\rooms\\{room.name}\\{room.name}.yy", WriteRoomJSON);
+                var newTask = new Task(() =>
+                {
+                    var WriteRoomJSON = JsonConvert.SerializeObject(room);
+                    Directory.CreateDirectory($"{outPath}\\rooms\\{room.name}");
+                    File.WriteAllText($"{outPath}\\rooms\\{room.name}\\{room.name}.yy", WriteRoomJSON);
+                });
+                tasks[i] = newTask;
+                newTask.Start();
+                i++;
+            }
+            foreach (var item in tasks)
+            {
+                item.Wait();
             }
 
+            tasks = new Task[SpriteJSONs.Count];
+            i = 0;
             foreach (var spr in SpriteJSONs)
             {
-                foreach (var frame in spr.frames)
+                var newTask = new Task(() =>
                 {
-                    Directory.CreateDirectory($"{outPath}\\sprites\\{spr.name}\\layers\\{frame.name}");
-                    gameData.Images.Items[frame.ctfhandle].bitmap.Save($"{outPath}\\sprites\\{spr.name}\\layers\\{frame.name}\\{spr.layers[0].name}.png");
-                    gameData.Images.Items[frame.ctfhandle].bitmap.Save($"{outPath}\\sprites\\{spr.name}\\{frame.name}.png");
-                }
-                var WriteSpriteJSON = JsonConvert.SerializeObject(spr).Replace("ZEROREPLACE", "0");
-                File.WriteAllText($"{outPath}\\sprites\\{spr.name}\\{spr.name}.yy", WriteSpriteJSON);
+                    foreach (var frame in spr.frames)
+                    {
+                        RETRY_SAVE:
+                        Directory.CreateDirectory($"{outPath}\\sprites\\{spr.name}\\layers\\{frame.name}");
+                        try
+                        {
+                            gameData.Images.Items[frame.ctfhandle].bitmap.Save($"{outPath}\\sprites\\{spr.name}\\layers\\{frame.name}\\{spr.layers[0].name}.png");
+                            gameData.Images.Items[frame.ctfhandle].bitmap.Save($"{outPath}\\sprites\\{spr.name}\\{frame.name}.png");
+                        }
+                        catch
+                        {
+                            goto RETRY_SAVE;
+                        }
+                    }
+                    RETRY_SAVE_YY:
+                    try
+                    {
+                        var WriteSpriteJSON = JsonConvert.SerializeObject(spr).Replace("ZEROREPLACE", "0");
+                        File.WriteAllText($"{outPath}\\sprites\\{spr.name}\\{spr.name}.yy", WriteSpriteJSON);
+                    }
+                    catch
+                    {
+                        goto RETRY_SAVE_YY;
+                    }
+                });
+                tasks[i] = newTask;
+                newTask.Start();
+                i++;
+            }
+            foreach (var item in tasks)
+            {
+                item.Wait();
             }
 
+            tasks = new Task[ObjectJSONs.Count];
+            i = 0;
             foreach (var obj in ObjectJSONs)
             {
-                var WriteObjJSON = JsonConvert.SerializeObject(obj);
-                Directory.CreateDirectory($"{outPath}\\objects\\{obj.name}");
-                File.WriteAllText($"{outPath}\\objects\\{obj.name}\\{obj.name}.yy", WriteObjJSON);
+                var newTask = new Task(() =>
+                {
+                    var WriteObjJSON = JsonConvert.SerializeObject(obj);
+                    Directory.CreateDirectory($"{outPath}\\objects\\{obj.name}");
+                    File.WriteAllText($"{outPath}\\objects\\{obj.name}\\{obj.name}.yy", WriteObjJSON);
+                });
+                tasks[i] = newTask;
+                newTask.Start();
+                i++;
+            }
+            foreach (var item in tasks)
+            {
+                item.Wait();
             }
         }
     }
