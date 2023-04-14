@@ -45,7 +45,7 @@ namespace ZelCTFTranslator.Parsers.GameMaker
                 // Start in full-screen mode
                     ZlibWriter.WriteInt32(gameData.header.Flags["FullscreenAtStart"] ? 1 : 0);
                 // Interpolate colors between pixels
-                    ZlibWriter.WriteInt32(gameData.ExtHeader.AntiAlias ? 1 : 0);
+                    ZlibWriter.WriteInt32(gameData.ExtHeader.Flags["AntiAliasingWhenResizing"] ? 1 : 0);
                 // Don't draw a border when in windowed mode
                     ZlibWriter.WriteInt32(gameData.header.NewFlags["NoThickFrame"] ? 1 : 0);
                 // Display the cursor

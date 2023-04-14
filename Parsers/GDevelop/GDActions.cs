@@ -280,5 +280,78 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             newAction.parameters = Parameters.ToArray();
             return newAction;
         }
+
+        public static GDJSON.Action CreateAt(Action action, GameData gameData, int frameID)
+        {
+            ByteWriter Parameter1 = new ByteWriter(new MemoryStream());
+            action.Items[0].Write(Parameter1);
+
+            ByteReader reader = new ByteReader(Parameter1.GetBuffer());
+            reader.Skip(4);
+            var obj = reader.ReadInt16();
+            reader.Skip(2);
+            var posx = reader.ReadInt16().ToString();
+            var posy = reader.ReadInt16().ToString();
+            reader.Skip(12);
+            var layer = reader.ReadInt16();
+
+            string ObjectName = $"Qualifier {action.ObjectInfo}";
+            if (action.ObjectInfo <= gameData.frameitems.Count)
+                ObjectName = gameData.frameitems[action.ObjectInfo].name;
+
+            if (obj != -1)
+            {
+                string ObjectName2 = $"Qualifier {obj}";
+                if (obj <= gameData.frameitems.Count)
+                    ObjectName2 = gameData.frameitems[obj].name;
+
+                posx = ObjectName2 + ".X() + " + posx;
+                posy = ObjectName2 + ".Y() + " + posy;
+            }
+
+            var newAction = new GDJSON.Action();
+            newAction.type.value = "Create";
+
+            var Parameters = new List<string>
+            {
+                "", //?
+                ObjectName, //Object Name
+                posx, //X Position
+                posy, //Y Position
+                $"\"{gameData.frames[frameID].layers.Items[layer].Name}\"", //Layer Name
+            };
+
+            newAction.parameters = Parameters.ToArray();
+            return newAction;
+        }
+
+        public static GDJSON.Action SetCameraXorY(Action action, GameData gameData, string xory)
+        {
+            ByteWriter Parameter1 = new ByteWriter(new MemoryStream());
+            action.Items[0].Write(Parameter1);
+
+            ByteReader reader = new ByteReader(Parameter1.GetBuffer());
+            reader.Skip(12);
+            var pos = reader.ReadInt16();
+
+            string ObjectName = $"Qualifier {action.ObjectInfo}";
+            if (action.ObjectInfo <= gameData.frameitems.Count)
+                ObjectName = gameData.frameitems[action.ObjectInfo].name;
+
+            var newAction = new GDJSON.Action();
+            newAction.type.value = "SetCameraCenter" + xory;
+
+            var Parameters = new List<string>
+            {
+                "", //?
+                "=", //Modifier
+                pos.ToString(), //Position
+                "", //Layer Name
+                "", //Camera ID
+            };
+
+            newAction.parameters = Parameters.ToArray();
+            return newAction;
+        }
     }
 }

@@ -24,6 +24,13 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                 return ((char)('A' + index)).ToString();
         }
 
+        public static Dictionary<string, int> extnames = new()
+        {
+            { "Every", 0 }
+        };
+
+        public static List<int> extensions = new();
+
         public static void Write(GameData gameData)
         {
             var outPath = gameData.name ?? "Unknown Game";
@@ -31,6 +38,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             outPath = rgx.Replace(outPath, "").Trim(' ');
             outPath = $"Dumps\\{outPath}\\GDevelop";
             Directory.CreateDirectory(outPath);
+            extensions = new();
 
             var JSONtoWrite = new GDJSON.Rootobject();
             JSONtoWrite.firstLayout = gameData.frames[0].name;
@@ -160,7 +168,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                         if (objItem.properties is ObjectCommon objCommon)
                         {
                             //Actives
-                            if (Settings.twofiveplus && objCommon.Identifier == "SPRI" || !Settings.twofiveplus && objCommon.Parent.ObjectType == 2)
+                            if (Settings.TwoFivePlus && objCommon.Identifier == "SPRI" || !Settings.TwoFivePlus && objCommon.Parent.ObjectType == 2)
                             {
                                 if (objCommon.Animations == null ||
                                     objCommon.Animations.AnimationDict == null ||
@@ -321,10 +329,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                         switch (cond.ObjectType)
                         {
                             /* To Add:
-                                Only One Action
                                 Counter !=<>
-                                Every Timer
-                                Start of Frame
                                 Animation is Over
                                 Overlapping
                                 Mouse Pointer Over
@@ -346,6 +351,24 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                                         break;
                                 }
                                 break;
+                            case -4:
+                                switch (cond.Num)
+                                {
+                                    case -8: //Every Timer
+                                        newCond = GDConditions.EveryTimer(cond, gameData, Events.Count);
+                                        if (!extensions.Contains(extnames["Every"]))
+                                            extensions.Add(extnames["Every"]);
+                                        break;
+                                }
+                                break;
+                            case -3:
+                                switch (cond.Num)
+                                {
+                                    case -1: //Start of Frame
+                                        newCond = GDConditions.DefaultType(cond, gameData, false, false, "DepartScene");
+                                        break;
+                                }
+                                break;
                             case -1:
                                 switch (cond.Num)
                                 {
@@ -354,6 +377,9 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                                         break;
                                     case -2: //Never
                                         newCond = GDConditions.DefaultType(cond, gameData, false, true, "BuiltinCommonInstructions::Always");
+                                        break;
+                                    case -7: //Only One Action
+                                        newCond = GDConditions.DefaultType(cond, gameData, false, false, "BuiltinCommonInstructions::Once");
                                         break;
                                 }
                                 break;
@@ -389,14 +415,19 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                         switch (action.ObjectType)
                         {
                             /* To Add:
-                                Create at Position
-                                Create at Position From
                                 Set/Add to/Subtract from; Counter
-                                Center Display at X
                                 Set Ini File
                                 Set Ini Group
                                 Set Ini Value
                             */
+                            case -5:
+                                switch (action.Num)
+                                {
+                                    case 0: //Create at Position
+                                        newAction = GDActions.CreateAt(action, gameData, Scenes.Count);
+                                        break;
+                                }
+                                break;
                             case -3:
                                 switch (action.Num)
                                 {
@@ -408,6 +439,9 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                                         break;
                                     case 4: //End Application
                                         newAction = GDActions.DefaultType(action, gameData, false, "Quit");
+                                        break;
+                                    case 8: //Center Display at X
+                                        newAction = GDActions.SetCameraXorY(action, gameData, "X");
                                         break;
                                 }
                                 break;
@@ -490,6 +524,17 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             JSONtoWrite.layouts = Scenes.ToArray();
 
             var JSON = JsonConvert.SerializeObject(JSONtoWrite);
+
+            string exts = "\"eventsFunctionsExtensions\": [";
+            foreach (int ext in extensions)
+            {
+                if (exts[exts.Length - 1] == '}')
+                    exts += ",";
+                exts += GDExtensions.extensions[ext];
+            }
+            exts += "],";
+
+            JSON = JSON.Replace(":null", ":[]").Replace("\"eventsFunctionsExtensions\":[],", exts);
             File.WriteAllText($"{outPath}\\game.json", JSON);
         }
     }
