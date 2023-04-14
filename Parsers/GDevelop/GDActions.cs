@@ -1,10 +1,16 @@
 ﻿using CTFAK.CCN;
 using CTFAK.CCN.Chunks.Banks;
 using CTFAK.CCN.Chunks.Frame;
+using CTFAK.CCN.Chunks.Objects;
 using CTFAK.Memory;
+using CTFAK.MMFParser.EXE.Loaders.Events.Expressions;
+using CTFAK.MMFParser.EXE.Loaders.Events.Parameters;
 using CTFAK.Utils;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection.Metadata;
+using static ZelCTFTranslator.Parsers.GDevelop.GDJSON;
+using Action = CTFAK.CCN.Chunks.Frame.Action;
 
 namespace ZelCTFTranslator.Parsers.GDevelop
 {
@@ -12,18 +18,8 @@ namespace ZelCTFTranslator.Parsers.GDevelop
     {
         public static GDJSON.Action SetAltVal(Action action, GameData gameData, string Modify)
         {
-            ByteWriter Parameter1 = new ByteWriter(new MemoryStream());
-            action.Items[0].Write(Parameter1);
-            ByteWriter Parameter2 = new ByteWriter(new MemoryStream());
-            action.Items[1].Write(Parameter2);
-
-            ByteReader reader = new ByteReader(Parameter1.GetBuffer());
-            reader.Skip(4);
-            short AlterableValue = reader.ReadInt16();
-
-            reader = new ByteReader(Parameter2.GetBuffer());
-            reader.Skip(12);
-            int ToModify = reader.ReadInt32();
+            var Parameter1 = action.Items[0].Loader as AlterableValue;
+            var Parameter2 = action.Items[1].Loader as ExpressionParameter;
 
             var newAction = new GDJSON.Action();
             newAction.type.value = "ModVarObjet";
@@ -35,9 +31,9 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             var Parameters = new List<string>
             {
                 ObjectName, //Object Name
-                "AlterableValue" + GDWriter.AltCharacter(AlterableValue), //Alterable Value
+                "AlterableValue" + GDWriter.AltCharacter(Parameter1.Value), //Alterable Value
                 Modify, //Modifier
-                ToModify.ToString() //To Modify
+                ((int)(Parameter2.Items[0].Loader as LongExp).Value).ToString() //To Modify
             };
 
             newAction.parameters = Parameters.ToArray();
@@ -46,12 +42,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
 
         public static GDJSON.Action SetXorY(Action action, GameData gameData, string XorY)
         {
-            ByteWriter Parameter = new ByteWriter(new MemoryStream());
-            action.Items[0].Write(Parameter);
-
-            ByteReader reader = new ByteReader(Parameter.GetBuffer());
-            reader.Skip(12);
-            int ToModify = reader.ReadInt32();
+            var Parameter1 = action.Items[0].Loader as ExpressionParameter;
 
             var newAction = new GDJSON.Action();
             newAction.type.value = "Mettre" + XorY;
@@ -64,7 +55,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             {
                 ObjectName, //Object Name
                 "=", //Modifier
-                ToModify.ToString() //To Modify
+                ((int)(Parameter1.Items[0].Loader as LongExp).Value).ToString() //To Modify
             };
 
             newAction.parameters = Parameters.ToArray();
@@ -73,12 +64,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
 
         public static GDJSON.Action SetAnimation(Action action, GameData gameData)
         {
-            ByteWriter Parameter = new ByteWriter(new MemoryStream());
-            action.Items[0].Write(Parameter);
-
-            ByteReader reader = new ByteReader(Parameter.GetBuffer());
-            reader.Skip(4);
-            short Animation = reader.ReadInt16();
+            var Parameter1 = action.Items[0].Loader as Short;
 
             var newAction = new GDJSON.Action();
             newAction.type.value = "SetAnimationName";
@@ -90,7 +76,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             var Parameters = new List<string>
             {
                 ObjectName, //Object Name
-                $"\"Animation {Animation}\"" //Animation Name
+                $"\"Animation {Parameter1.Value}\"" //Animation Name
             };
 
             newAction.parameters = Parameters.ToArray();
@@ -116,13 +102,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
 
         public static GDJSON.Action SetPosition(Action action, GameData gameData)
         {
-            ByteWriter Parameter = new ByteWriter(new MemoryStream());
-            action.Items[0].Write(Parameter);
-
-            ByteReader reader = new ByteReader(Parameter.GetBuffer());
-            reader.Skip(8);
-            short X = reader.ReadInt16();
-            short Y = reader.ReadInt16();
+            var Parameter1 = action.Items[0].Loader as Position;
 
             var newAction = new GDJSON.Action();
             newAction.type.value = "MettreXY";
@@ -135,9 +115,9 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             {
                 ObjectName, //Object Name
                 "=", //Modifier
-                X.ToString(), //X Position
+                Parameter1.X.ToString(), //X Position
                 "=", //Modifier
-                Y.ToString(), //Y Position
+                Parameter1.Y.ToString(), //Y Position
             };
 
             newAction.parameters = Parameters.ToArray();
@@ -146,12 +126,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
 
         public static GDJSON.Action SetOpacity(Action action, GameData gameData)
         {
-            ByteWriter Parameter = new ByteWriter(new MemoryStream());
-            action.Items[0].Write(Parameter);
-
-            ByteReader reader = new ByteReader(Parameter.GetBuffer());
-            reader.Skip(12);
-            short Opacity = reader.ReadInt16();
+            var Parameter1 = action.Items[0].Loader as ExpressionParameter;
 
             var newAction = new GDJSON.Action();
             newAction.type.value = "SetEffectDoubleParameter";
@@ -165,7 +140,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                 ObjectName, //Object Name
                 "\"Alpha Blending Coefficient\"", //Effect Name
                 "\"opacity\"", //Effect Parameter Name
-                (1 - (Opacity / 255)).ToString(), //Effect Parameter To Modify
+                (1.0 - (((int)(Parameter1.Items[0].Loader as LongExp).Value) / 255.0)).ToString(), //Effect Parameter To Modify
             };
 
             newAction.parameters = Parameters.ToArray();
@@ -174,30 +149,20 @@ namespace ZelCTFTranslator.Parsers.GDevelop
 
         public static GDJSON.Action PlaySoundChannel(Action action, GameData gameData, bool Loop)
         {
-            ByteWriter Parameter1 = new ByteWriter(new MemoryStream());
-            action.Items[0].Write(Parameter1);
-            ByteWriter Parameter2 = new ByteWriter(new MemoryStream());
-            action.Items[1].Write(Parameter2);
-
-            ByteReader reader = new ByteReader(Parameter1.GetBuffer());
-            reader.Skip(8);
-            string SoundFile = reader.ReadUniversal();
-
-            reader = new ByteReader(Parameter2.GetBuffer());
-            reader.Skip(12);
-            int Channel = reader.ReadInt32();
+            var Parameter1 = action.Items[0].Loader as Sample;
+            var Parameter2 = action.Items[1].Loader as ExpressionParameter;
 
             var newAction = new GDJSON.Action();
             newAction.type.value = "PlaySoundCanal";
 
             foreach (SoundItem sound in gameData.Sounds.Items)
-                if (sound.Name == SoundFile)
+                if (sound.Name == Parameter1.Name)
                 {
                     var snddata = sound.Data;
                     var sndext = ".wav";
                     if (snddata[0] == 0xff || snddata[0] == 0x49)
                         sndext = ".mp3";
-                    SoundFile += sndext;
+                    Parameter1.Name += sndext;
                     break;
                 }
 
@@ -208,8 +173,8 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             var Parameters = new List<string>
             {
                 "", //?
-                SoundFile, //Sound File
-                Channel.ToString(), //Channel
+                Parameter1.Name, //Sound File
+                ((int)(Parameter2.Items[0].Loader as LongExp).Value).ToString(), //Channel
             };
 
             if (Loop)
@@ -226,28 +191,19 @@ namespace ZelCTFTranslator.Parsers.GDevelop
 
         public static GDJSON.Action SetChannelVolume(Action action, GameData gameData)
         {
-            ByteWriter Parameter1 = new ByteWriter(new MemoryStream());
-            action.Items[0].Write(Parameter1);
-            ByteWriter Parameter2 = new ByteWriter(new MemoryStream());
-            action.Items[1].Write(Parameter2);
-
-            ByteReader reader = new ByteReader(Parameter1.GetBuffer());
-            reader.Skip(12);
-            int Channel = reader.ReadInt32();
-
-            reader = new ByteReader(Parameter2.GetBuffer());
-            reader.Skip(12);
-            int ModifyTo = reader.ReadInt32();
+            var Parameter1 = action.Items[0].Loader as ExpressionParameter;
+            var Parameter2 = action.Items[1].Loader as ExpressionParameter;
 
             var newAction = new GDJSON.Action();
+
             newAction.type.value = "ModVolumeSoundCanal";
 
             var Parameters = new List<string>
             {
                 "", //?
-                Channel.ToString(), //Channel
+                ((int)(Parameter1.Items[0].Loader as LongExp).Value).ToString(), //Channel
                 "=", //Modifier
-                ModifyTo.ToString() //Modify To
+                ((int)(Parameter2.Items[0].Loader as LongExp).Value).ToString() //Modify To
             };
 
             newAction.parameters = Parameters.ToArray();
@@ -256,15 +212,14 @@ namespace ZelCTFTranslator.Parsers.GDevelop
 
         public static GDJSON.Action ToFrame(Action action, GameData gameData, int frameID = -1)
         {
-            int toFrame = frameID + 1;
+            int toFrame = frameID;
+            if (gameData.frames.Count - 1 > frameID)
+                toFrame += 1;
+
             if (frameID == -1)
             {
-                ByteWriter Parameter1 = new ByteWriter(new MemoryStream());
-                action.Items[0].Write(Parameter1);
-
-                ByteReader reader = new ByteReader(Parameter1.GetBuffer());
-                reader.Skip(4);
-                toFrame = reader.ReadInt16();
+                var Parameter1 = action.Items[0].Loader as Short;
+                toFrame = Parameter1.Value;
             }
 
             var newAction = new GDJSON.Action();
@@ -283,27 +238,20 @@ namespace ZelCTFTranslator.Parsers.GDevelop
 
         public static GDJSON.Action CreateAt(Action action, GameData gameData, int frameID)
         {
-            ByteWriter Parameter1 = new ByteWriter(new MemoryStream());
-            action.Items[0].Write(Parameter1);
+            var Parameter1 = action.Items[0].Loader as Create;
 
-            ByteReader reader = new ByteReader(Parameter1.GetBuffer());
-            reader.Skip(4);
-            var obj = reader.ReadInt16();
-            reader.Skip(2);
-            var posx = reader.ReadInt16().ToString();
-            var posy = reader.ReadInt16().ToString();
-            reader.Skip(12);
-            var layer = reader.ReadInt16();
+            var posx = Parameter1.Position.X.ToString();
+            var posy = Parameter1.Position.Y.ToString();
 
             string ObjectName = $"Qualifier {action.ObjectInfo}";
             if (action.ObjectInfo <= gameData.frameitems.Count)
                 ObjectName = gameData.frameitems[action.ObjectInfo].name;
 
-            if (obj != -1)
+            if (Parameter1.Position.ObjectInfoParent != -1)
             {
-                string ObjectName2 = $"Qualifier {obj}";
-                if (obj <= gameData.frameitems.Count)
-                    ObjectName2 = gameData.frameitems[obj].name;
+                string ObjectName2 = $"Qualifier {Parameter1.Position.ObjectInfoParent}";
+                if (Parameter1.Position.ObjectInfoParent <= gameData.frameitems.Count)
+                    ObjectName2 = gameData.frameitems[Parameter1.Position.ObjectInfoParent].name;
 
                 posx = ObjectName2 + ".X() + " + posx;
                 posy = ObjectName2 + ".Y() + " + posy;
@@ -318,7 +266,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                 ObjectName, //Object Name
                 posx, //X Position
                 posy, //Y Position
-                $"\"{gameData.frames[frameID].layers.Items[layer].Name}\"", //Layer Name
+                $"\"{gameData.frames[frameID].layers.Items[Parameter1.Position.Layer].Name}\"", //Layer Name
             };
 
             newAction.parameters = Parameters.ToArray();
@@ -327,12 +275,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
 
         public static GDJSON.Action SetCameraXorY(Action action, GameData gameData, string xory)
         {
-            ByteWriter Parameter1 = new ByteWriter(new MemoryStream());
-            action.Items[0].Write(Parameter1);
-
-            ByteReader reader = new ByteReader(Parameter1.GetBuffer());
-            reader.Skip(12);
-            var pos = reader.ReadInt16();
+            var Parameter1 = action.Items[0].Loader as ExpressionParameter;
 
             string ObjectName = $"Qualifier {action.ObjectInfo}";
             if (action.ObjectInfo <= gameData.frameitems.Count)
@@ -345,7 +288,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             {
                 "", //?
                 "=", //Modifier
-                pos.ToString(), //Position
+                ((int)(Parameter1.Items[0].Loader as LongExp).Value).ToString(), //Position
                 "", //Layer Name
                 "", //Camera ID
             };

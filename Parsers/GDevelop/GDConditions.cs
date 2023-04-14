@@ -1,9 +1,13 @@
 ﻿using CTFAK.CCN;
 using CTFAK.CCN.Chunks.Frame;
+using CTFAK.CCN.Chunks.Objects;
 using CTFAK.Memory;
+using CTFAK.MMFParser.EXE.Loaders.Events.Expressions;
+using CTFAK.MMFParser.EXE.Loaders.Events.Parameters;
 using CTFAK.Utils;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using ZelCTFTranslator.Utils;
 
 namespace ZelCTFTranslator.Parsers.GDevelop
@@ -12,26 +16,18 @@ namespace ZelCTFTranslator.Parsers.GDevelop
     {
         public static GDJSON.Condition CompareAltVal(Condition condition, GameData gameData)
         {
-            ByteWriter Parameter1 = new ByteWriter(new MemoryStream());
-            condition.Items[0].Write(Parameter1);
-            ByteWriter Parameter2 = new ByteWriter(new MemoryStream());
-            condition.Items[1].Write(Parameter2);
-
-            ByteReader reader = new ByteReader(Parameter1.GetBuffer());
-            reader.Skip(4);
-            short AlterableValue = reader.ReadInt16();
-
-            reader = new ByteReader(Parameter2.GetBuffer());
-            reader.Skip(4);
-            short Comparison = reader.ReadInt16();
-            reader.Skip(6);
-            int CompareTo = reader.ReadInt32();
+            var Parameter1 = condition.Items[0].Loader as AlterableValue;
+            var Parameter2 = condition.Items[1].Loader as ExpressionParameter;
 
             var newCondition = new GDJSON.Condition();
             newCondition.type.value = "VarObjet";
 
+            string ObjectName = $"Qualifier {condition.ObjectInfo}";
+            if (condition.ObjectInfo <= gameData.frameitems.Count)
+                ObjectName = gameData.frameitems[condition.ObjectInfo].name;
+
             string ComparisonStr;
-            switch (Comparison)
+            switch (Parameter2.Comparsion)
             {
                 default:
                 case 0:
@@ -54,16 +50,12 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                     break;
             }
 
-            string ObjectName = $"Qualifier {condition.ObjectInfo}";
-            if (condition.ObjectInfo <= gameData.frameitems.Count)
-                ObjectName = gameData.frameitems[condition.ObjectInfo].name;
-
             var Parameters = new List<string>
             {
                 ObjectName, //Object Name
-                "AlterableValue" + GDWriter.AltCharacter(AlterableValue), //Alterable Value
+                "AlterableValue" + GDWriter.AltCharacter(Parameter1.Value), //Alterable Value
                 ComparisonStr, //Comparison
-                CompareTo.ToString() //Compare To
+                ((int)(Parameter2.Items[0].Loader as LongExp).Value).ToString() //Compare To
             };
 
             newCondition.parameters = Parameters.ToArray();
@@ -92,12 +84,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
 
         public static GDJSON.Condition KeyPressed(Condition condition, GameData gameData)
         {
-            ByteWriter Parameter1 = new ByteWriter(new MemoryStream());
-            condition.Items[0].Write(Parameter1);
-
-            ByteReader reader = new ByteReader(Parameter1.GetBuffer());
-            reader.Skip(4);
-            short Key = reader.ReadInt16();
+            var Parameter1 = condition.Items[0].Loader as KeyParameter;
 
             var newCondition = new GDJSON.Condition();
             newCondition.type.value = "KeyPressed";
@@ -105,7 +92,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             var Parameters = new List<string>
             {
                 "",
-                GDKeyCodes.ShortKeyCodes[Key],
+                GDKeyCodes.ShortKeyCodes[(short)Parameter1.Key],
             };
 
             newCondition.parameters = Parameters.ToArray();
@@ -114,12 +101,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
 
         public static GDJSON.Condition EveryTimer(Condition condition, GameData gameData, int index)
         {
-            ByteWriter Parameter1 = new ByteWriter(new MemoryStream());
-            condition.Items[0].Write(Parameter1);
-
-            ByteReader reader = new ByteReader(Parameter1.GetBuffer());
-            reader.Skip(4);
-            int milli = reader.ReadInt32();
+            var Parameter1 = condition.Items[0].Loader as Time;
 
             var newCondition = new GDJSON.Condition();
             newCondition.type.value = "RepeatEveryXSeconds::Repeat";
@@ -128,7 +110,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             {
                 "", //?
                 $"\"{index}\"",
-                (milli / 1000.0).ToString(),
+                (Parameter1.Timer / 1000.0).ToString(),
                 ""
             };
 

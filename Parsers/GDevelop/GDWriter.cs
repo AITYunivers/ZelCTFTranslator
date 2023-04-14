@@ -393,7 +393,20 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                                 break;
                         }
                         if (newCond == null)
+                        {
                             Logger.Log($"Unknown Condition: {cond.ObjectType} ~ {cond.Num}");
+                            int p = 0;
+                            foreach (var parameter in cond.Items)
+                            {
+                                var paramwriter = new ByteWriter(new MemoryStream());
+                                parameter.Write(paramwriter);
+                                var paramreader = new ByteReader(new MemoryStream(paramwriter.GetBuffer()));
+                                paramreader.Seek(2);
+                                Logger.Log($"Parameter{p} - {paramreader.ReadInt16()}.bin");
+                                p++;
+                            }
+                            Logger.Log("");
+                        }
 
                         Conditions.Add(newCond);
                     }
@@ -502,7 +515,20 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                                 break;
                         }
                         if (newAction == null)
+                        {
                             Logger.Log($"Unknown Action: {action.ObjectType} ~ {action.Num}");
+                            int p = 0;
+                            foreach (var parameter in action.Items)
+                            {
+                                var paramwriter = new ByteWriter(new MemoryStream());
+                                parameter.Write(paramwriter);
+                                var paramreader = new ByteReader(new MemoryStream(paramwriter.GetBuffer()));
+                                paramreader.Seek(2);
+                                Logger.Log($"Parameter{p} - {paramreader.ReadInt16()}.bin");
+                                p++;
+                            }
+                            Logger.Log("");
+                        }
 
                         Actions.Add(newAction);
                     }
