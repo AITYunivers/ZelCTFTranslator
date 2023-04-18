@@ -19,11 +19,16 @@ using ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYs;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Drawing;
+using System.Diagnostics.Metrics;
+using System.Diagnostics.Tracing;
+using static ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYs.ObjectYY;
 
 namespace ZelCTFTranslator.Parsers.GDevelop
 {
     public class GMS2Writer
     {
+        public static List<ObjectYY.GMLFile> GMLFiles = new List<ObjectYY.GMLFile>();
         public static int SpriteOrder = 0;
         public static int ObjectOrder = 0;
         public static int FrameOrder = 0;
@@ -160,6 +165,9 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                 bgLayer.resourceType = "GMRBackgroundLayer";
                 bgLayer.name = "Background";
                 bgLayer.visible = true;
+                bgLayer.colour = ToUIntColour(Frame.background); // Convert Frame BG color to 32-bit unsigned int for GMS
+                //Logger.Log(Frame.name + " BG Colour: " + Frame.background.ToString());
+                //Logger.Log(Frame.name + " BG UIntCol: " + ToUIntColour(Frame.background).ToString());
                 roomLayers.Add(bgLayer);
 
                 // Instance Layers
@@ -187,7 +195,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                             newInstance.colour = ((long)instance.blend * 16777216) + 16777215; 
 
                             var objectID = new RoomYY.ObjectID();
-                            objectID.name = CleanString(instance.name) + " - " + instance.handle;
+                            objectID.name = CleanString(instance.name).Replace(" ", "_") + "-" + instance.handle;
                             objectID.path = $"objects/{objectID.name}/{objectID.name}.yy";
                             newInstance.objectId = objectID;
                             LayerInstances.Add(newInstance);
@@ -242,6 +250,73 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             var Sprites = new List<SpriteYY.RootObject>();
             foreach (var obj in gameData.frameitems.Values)
             {
+                // Counters sprites
+                if (obj.properties is ObjectCommon commonCntr)
+                {
+                    if (commonCntr.Identifier == "CNTR" || commonCntr.Identifier == "CN" || !Settings.TwoFivePlus && commonCntr.Parent.ObjectType == 7)
+                    {
+                        Logger.Log($"Counter found: {obj.name}");
+                        var counter = commonCntr.Counters;
+
+                        var newSprite = new SpriteYY.RootObject();
+                        var imgs = counter.Frames;
+                        var baseimg = gameData.Images.Items[imgs[0]];
+                        newSprite.name = $"CounterSprite_{imgs[0]}";
+
+                        newSprite.bbox_right = baseimg.width - 1;
+                        newSprite.bbox_bottom = baseimg.height - 1;
+                        newSprite.width = baseimg.width;
+                        newSprite.height = baseimg.height;
+
+                        newSprite.frames = new SpriteYY.Frame[imgs.Count];
+
+                        for (int i = 0; i < imgs.Count; i++)
+                        {
+                            newSprite.frames[i] = new SpriteYY.Frame();
+                            newSprite.frames[i].name = Guid.NewGuid().ToString();
+                            newSprite.frames[i].ctfhandle = imgs[i];
+                        }
+
+                        var newSequence = new SpriteYY.Sequence();
+                        newSequence.name = $"CounterSprite_{obj.handle}";
+                        newSequence.playbackSpeed = 0;
+                        newSequence.length = imgs.Count;
+                        newSequence.backdropWidth = gameData.header.WindowWidth;
+                        newSequence.backdropHeight = gameData.header.WindowHeight;
+                        newSequence.xorigin = baseimg.width;
+                        newSequence.yorigin = baseimg.height;
+
+                        var seqFrames = new List<SpriteYY.KeyFrame>();
+                        int fi = 0;
+                        foreach (var frame in newSprite.frames)
+                        {
+                            var newKeyFrame = new SpriteYY.KeyFrame();
+                            newKeyFrame.id = Guid.NewGuid().ToString();
+                            newKeyFrame.Key = fi;
+                            newKeyFrame.Channels.ZEROREPLACE.Id.name = frame.name;
+                            newKeyFrame.Channels.ZEROREPLACE.Id.path = $"sprites/{newSprite.name}/{newSprite.name}.yy";
+                            seqFrames.Add(newKeyFrame);
+                            fi++;
+                        }
+                        newSequence.tracks[0].keyframes.Keyframes = seqFrames.ToArray();
+
+                        newSprite.sequence = newSequence;
+                        newSprite.layers[0].name = Guid.NewGuid().ToString();
+                        Sprites.Add(newSprite);
+
+                        var newSpriteRes = new ProjectYYP.Resource();
+                        var newSpriteResID = new ProjectYYP.ResourceID();
+
+                        newSpriteResID.name = newSprite.name;
+                        newSpriteResID.path = $"sprites/{newSprite.name}/{newSprite.name}.yy";
+                        newSpriteRes.id = newSpriteResID;
+                        newSpriteRes.order = SpriteOrder;
+                        SpriteOrder++;
+                        Resources.Add(newSpriteRes);
+                    }
+                }
+
+                // Actives/Common Objs sprites
                 if (obj.properties is ObjectCommon common)
                 {
                     if (common.Animations == null ||
@@ -315,12 +390,128 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                         }
                     }
                 }
+
+                // Backdrops sprites (come back to this)
+                if (obj.properties is Backdrop backdrop)
+                {
+                    var newSprite = new SpriteYY.RootObject();
+                    var imgs = new List<int>() { backdrop.Image };
+                    var baseimg = gameData.Images.Items[imgs[0]];
+                    newSprite.name = $"Backdrop_{imgs[0]}";
+
+                    newSprite.bbox_right = baseimg.width - 1;
+                    newSprite.bbox_bottom = baseimg.height - 1;
+                    newSprite.width = baseimg.width;
+                    newSprite.height = baseimg.height;
+
+                    newSprite.frames = new SpriteYY.Frame[imgs.Count];
+
+                    for (int i = 0; i < imgs.Count; i++)
+                    {
+                        newSprite.frames[i] = new SpriteYY.Frame();
+                        newSprite.frames[i].name = Guid.NewGuid().ToString();
+                        newSprite.frames[i].ctfhandle = imgs[i];
+                    }
+
+                    var newSequence = new SpriteYY.Sequence();
+                    newSequence.name = $"Backdrop-{obj.handle}";
+                    newSequence.playbackSpeed = 0;
+                    newSequence.length = 1;
+                    newSequence.backdropWidth = gameData.header.WindowWidth;
+                    newSequence.backdropHeight = gameData.header.WindowHeight;
+                    newSequence.xorigin = 0;
+                    newSequence.yorigin = 0;
+
+                    var seqFrames = new List<SpriteYY.KeyFrame>();
+                    int fi = 0;
+                    foreach (var frame in newSprite.frames)
+                    {
+                        var newKeyFrame = new SpriteYY.KeyFrame();
+                        newKeyFrame.id = Guid.NewGuid().ToString();
+                        newKeyFrame.Key = fi;
+                        newKeyFrame.Channels.ZEROREPLACE.Id.name = frame.name;
+                        newKeyFrame.Channels.ZEROREPLACE.Id.path = $"sprites/{newSprite.name}/{newSprite.name}.yy";
+                        seqFrames.Add(newKeyFrame);
+                        fi++;
+                    }
+                    newSequence.tracks[0].keyframes.Keyframes = seqFrames.ToArray();
+
+                    newSprite.sequence = newSequence;
+                    newSprite.layers[0].name = Guid.NewGuid().ToString();
+                    Sprites.Add(newSprite);
+
+                    var newSpriteRes = new ProjectYYP.Resource();
+                    var newSpriteResID = new ProjectYYP.ResourceID();
+
+                    newSpriteResID.name = newSprite.name;
+                    newSpriteResID.path = $"sprites/{newSprite.name}/{newSprite.name}.yy";
+                    newSpriteRes.id = newSpriteResID;
+                    newSpriteRes.order = SpriteOrder;
+                    SpriteOrder++;
+                    Resources.Add(newSpriteRes);
+                }
             }
 
 
             var Objects = new List<ObjectYY.RootObject>();
             foreach (var obj in gameData.frameitems.Values)
             {
+                //Counters objects
+                if (obj.properties is ObjectCommon commonCntr)
+                {
+                    if (commonCntr.Identifier == "CNTR" || commonCntr.Identifier == "CN" || !Settings.TwoFivePlus && commonCntr.Parent.ObjectType == 7)
+                    {
+                        var counters = commonCntr.Counters;
+                        var counter = commonCntr.Counter;
+                        var imgs = counters.Frames;
+
+                        var newObj = new ObjectYY.RootObject();
+                        newObj.name = CleanString(obj.name).Replace(" ", "_") + "-" + obj.handle;
+                        newObj.visible = commonCntr.NewFlags["VisibleAtStart"];
+                        newObj.spriteId.name = $"CounterSprite_{imgs[0]}";
+                        newObj.spriteId.path = $"sprites/{newObj.spriteId.name}/{newObj.spriteId.name}.yy";
+
+                        var events = new List<ObjectYY.Event>();
+
+                        var createEv = new ObjectYY.Event();
+                        createEv.eventNum = 0;
+                        createEv.eventType = 0;
+                        events.Add(createEv);
+
+                        var createEvFile = new ObjectYY.GMLFile();
+                        createEvFile.name = "Create_0";
+                        createEvFile.path = $"objects\\{newObj.name}";
+                        createEvFile.code = "value = 0;\r\nminval = -999999999;\r\nmaxval = 999999999;\r\nspriteFont = font_add_sprite_ext(COUNTERSPR, \"0123456789-+.e\", false, false);".Replace("COUNTERSPR", newObj.spriteId.name);
+                        GMLFiles.Add(createEvFile);
+
+                        var drawEv = new ObjectYY.Event();
+                        drawEv.eventNum = 0;
+                        drawEv.eventType = 8;
+                        events.Add(drawEv);
+
+                        var drawEvFile = new ObjectYY.GMLFile();
+                        drawEvFile.name = "Draw_0";
+                        drawEvFile.path = $"objects\\{newObj.name}";
+                        drawEvFile.code = "draw_set_font(spriteFont);\r\ndraw_text(x, y, string(value));";
+                        GMLFiles.Add(drawEvFile);
+
+                        newObj.eventList = events.ToArray();
+
+                        Objects.Add(newObj);
+
+                        var newObjectRes = new ProjectYYP.Resource();
+                        var newObjectResID = new ProjectYYP.ResourceID();
+
+                        newObjectResID.name = newObj.name;
+                        newObjectResID.path = $"objects/{newObj.name}/{newObj.name}.yy";
+                        newObjectRes.id = newObjectResID;
+                        newObjectRes.order = ObjectOrder;
+                        ObjectOrder++;
+                        Resources.Add(newObjectRes);
+                    }
+                }
+
+                // Actives/Common Objs objects
                 if (obj.properties is ObjectCommon common)
                 {
                     if (common.Animations == null ||
@@ -333,9 +524,32 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                     var imgs = common.Animations.AnimationDict[0].DirectionDict[0].Frames;
 
                     var newObj = new ObjectYY.RootObject();
-                    newObj.name = CleanString(obj.name) + " - " + obj.handle;
+                    newObj.name = CleanString(obj.name).Replace(" ", "_") + "-" + obj.handle;
                     newObj.visible = common.NewFlags["VisibleAtStart"];
                     newObj.spriteId.name = $"Sprite {imgs[0]} 0-0";
+                    newObj.spriteId.path = $"sprites/{newObj.spriteId.name}/{newObj.spriteId.name}.yy";
+                    Objects.Add(newObj);
+
+                    var newObjectRes = new ProjectYYP.Resource();
+                    var newObjectResID = new ProjectYYP.ResourceID();
+
+                    newObjectResID.name = newObj.name;
+                    newObjectResID.path = $"objects/{newObj.name}/{newObj.name}.yy";
+                    newObjectRes.id = newObjectResID;
+                    newObjectRes.order = ObjectOrder;
+                    ObjectOrder++;
+                    Resources.Add(newObjectRes);
+                }
+
+                // Backdrops objects
+                if (obj.properties is Backdrop backdrop)
+                {
+                    var imgs = new List<int>() { backdrop.Image };
+
+                    var newObj = new ObjectYY.RootObject();
+                    newObj.name = CleanString(obj.name).Replace(" ", "_") + "-" + obj.handle;
+                    newObj.visible = true;
+                    newObj.spriteId.name = $"Backdrop_{imgs[0]}";
                     newObj.spriteId.path = $"sprites/{newObj.spriteId.name}/{newObj.spriteId.name}.yy";
                     Objects.Add(newObj);
 
@@ -456,6 +670,35 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             {
                 item.Wait();
             }
+
+            tasks = new Task[GMLFiles.Count];
+            i = 0;
+            foreach (var obj in GMLWriter.GMLFiles)
+            {
+                var newTask = new Task(() =>
+                {
+                    Directory.CreateDirectory($"{outPath}\\{obj.path}");
+                    File.WriteAllText($"{outPath}\\{obj.path}\\{obj.name}.gml", obj.code);
+                    Logger.Log($"Wrote GML to {outPath}\\{obj.path}\\{obj.name}.gml");
+                });
+                tasks[i] = newTask;
+                newTask.Start();
+                i++;
+            }
+            foreach (var item in tasks)
+            {
+                item.Wait();
+            }
         }
+
+        public static uint ToUIntColour(Color colour)
+        {
+            uint UIntCol = (UInt32)255 << 24; // Alpha (no bg transparency in fusion)
+            UIntCol += (UInt32)colour.B << 16;
+            UIntCol += (UInt32)colour.G << 8;
+            UIntCol += colour.R;
+            return UIntCol;
+        }
+
     }
 }

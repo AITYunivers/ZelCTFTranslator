@@ -5,7 +5,7 @@ VisualStudioVersion = 17.4.33110.190
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ZelCTFTranslator", "ZelCTFTranslator.csproj", "{EDF844B7-7641-4441-B3E2-60FAA6751178}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CTFAK.Core", "..\CTFAK 2.2\Core\CTFAK.Core\CTFAK.Core.csproj", "{0020FEC9-7C6B-4650-9A71-D14F930DB831}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CTFAK.Core", "..\CTFAK2.0\Core\CTFAK.Core\CTFAK.Core.csproj", "{C291DB61-71BF-469D-B6DA-9F385BBB36CE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +17,10 @@ Global
 		{EDF844B7-7641-4441-B3E2-60FAA6751178}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EDF844B7-7641-4441-B3E2-60FAA6751178}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EDF844B7-7641-4441-B3E2-60FAA6751178}.Release|Any CPU.Build.0 = Release|Any CPU
-		{0020FEC9-7C6B-4650-9A71-D14F930DB831}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0020FEC9-7C6B-4650-9A71-D14F930DB831}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0020FEC9-7C6B-4650-9A71-D14F930DB831}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0020FEC9-7C6B-4650-9A71-D14F930DB831}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C291DB61-71BF-469D-B6DA-9F385BBB36CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C291DB61-71BF-469D-B6DA-9F385BBB36CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C291DB61-71BF-469D-B6DA-9F385BBB36CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C291DB61-71BF-469D-B6DA-9F385BBB36CE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
