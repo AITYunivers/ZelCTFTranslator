@@ -459,6 +459,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                 //Counters objects
                 if (obj.properties is ObjectCommon commonCntr)
                 {
+                    Logger.Log($"Counter Object: {commonCntr.Identifier}");
                     if (commonCntr.Identifier == "CNTR" || commonCntr.Identifier == "CN" || !Settings.TwoFivePlus && commonCntr.Parent.ObjectType == 7)
                     {
                         var counters = commonCntr.Counters;
@@ -514,6 +515,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                 // Actives/Common Objs objects
                 if (obj.properties is ObjectCommon common)
                 {
+                    Logger.Log($"Common Object: {common.Identifier} - {obj.name}");
                     if (common.Animations == null ||
                         common.Animations.AnimationDict == null ||
                         common.Animations.AnimationDict.Count == 0 ||
