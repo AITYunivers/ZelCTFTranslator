@@ -459,9 +459,10 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                 //Counters objects
                 if (obj.properties is ObjectCommon commonCntr)
                 {
-                    Logger.Log($"Counter Object: {commonCntr.Identifier}");
+                    
                     if (commonCntr.Identifier == "CNTR" || commonCntr.Identifier == "CN" || !Settings.TwoFivePlus && commonCntr.Parent.ObjectType == 7)
                     {
+                        Logger.Log($"Counter Object: {commonCntr.Identifier}");
                         var counters = commonCntr.Counters;
                         var counter = commonCntr.Counter;
                         var imgs = counters.Frames;
@@ -515,14 +516,31 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                 // Actives/Common Objs objects
                 if (obj.properties is ObjectCommon common)
                 {
-                    Logger.Log($"Common Object: {common.Identifier} - {obj.name}");
+                    Logger.Log($"Common Object: {common.Identifier}");
                     if (common.Animations == null ||
                         common.Animations.AnimationDict == null ||
                         common.Animations.AnimationDict.Count == 0 ||
                         common.Animations.AnimationDict[0].DirectionDict == null ||
                         common.Animations.AnimationDict[0].DirectionDict.Count == 0 ||
-                        common.Animations.AnimationDict[0].DirectionDict[0].Frames.Count == 0) 
-                            continue;
+                        common.Animations.AnimationDict[0].DirectionDict[0].Frames.Count == 0 ||
+                        (common.Identifier != "SPRI" && common.Identifier != "SP"))
+                    { // For any CommonObjects that are unimplemented (i.e. Physics - Engine) pretty much only to stop missing resource complaints from GMS2
+                        var newCommonObj = new ObjectYY.RootObject();
+                        newCommonObj.name = CleanString(obj.name).Replace(" ", "_") + "-" + obj.handle;
+                        newCommonObj.visible = false;
+                        Objects.Add(newCommonObj);
+
+                        var newCommonObjectRes = new ProjectYYP.Resource();
+                        var newCommonObjectResID = new ProjectYYP.ResourceID();
+
+                        newCommonObjectResID.name = newCommonObj.name;
+                        newCommonObjectResID.path = $"objects/{newCommonObj.name}/{newCommonObj.name}.yy";
+                        newCommonObjectRes.id = newCommonObjectResID;
+                        newCommonObjectRes.order = ObjectOrder;
+                        ObjectOrder++;
+                        Resources.Add(newCommonObjectRes);
+                        continue;
+                    }
                     var imgs = common.Animations.AnimationDict[0].DirectionDict[0].Frames;
 
                     var newObj = new ObjectYY.RootObject();
@@ -546,6 +564,7 @@ namespace ZelCTFTranslator.Parsers.GDevelop
                 // Backdrops objects
                 if (obj.properties is Backdrop backdrop)
                 {
+
                     var imgs = new List<int>() { backdrop.Image };
 
                     var newObj = new ObjectYY.RootObject();
@@ -672,10 +691,10 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             {
                 item.Wait();
             }
-
+            /*
             tasks = new Task[GMLFiles.Count];
             i = 0;
-            foreach (var obj in GMLWriter.GMLFiles)
+            foreach (var obj in GMLFiles)
             {
                 var newTask = new Task(() =>
                 {
@@ -690,6 +709,13 @@ namespace ZelCTFTranslator.Parsers.GDevelop
             foreach (var item in tasks)
             {
                 item.Wait();
+            }
+            */
+            foreach (var obj in GMLFiles) // Non multi-threaded
+            {
+                Directory.CreateDirectory($"{outPath}\\{obj.path}");
+                File.WriteAllText($"{outPath}\\{obj.path}\\{obj.name}.gml", obj.code);
+                Logger.Log($"Wrote GML to {outPath}\\{obj.path}\\{obj.name}.gml");
             }
         }
 

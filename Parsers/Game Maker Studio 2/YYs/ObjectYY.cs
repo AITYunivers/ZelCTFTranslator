@@ -64,10 +64,6 @@ namespace ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYs
             public string path { get; set; }
             public string code { get; set; }
         }
-        public class GMLWriter
-        {
-            public static List<ObjectYY.GMLFile> GMLFiles = new List<ObjectYY.GMLFile>();
-        }
 
     }
 }
