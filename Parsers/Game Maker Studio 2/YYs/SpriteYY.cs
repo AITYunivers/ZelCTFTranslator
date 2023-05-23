@@ -1,4 +1,6 @@
-﻿namespace ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYs
+﻿using System.Drawing;
+
+namespace ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYs
 {
     public class SpriteYY
     {
@@ -53,6 +55,9 @@
             public string resourceVersion = "1.1";
             public string name { get; set; }
             public int ctfhandle { get; set; }
+            public int ShapeType { get; set; }
+            public int FillType { get; set; }
+            public Color solidColor { get; set; }
         }
 
         // Sequences
