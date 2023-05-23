@@ -16,6 +16,6 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CTFAK 2.2\Core\CTFAK.Core\CTFAK.Core.csproj" />
+    <ProjectReference Include="..\CTFAK2.0\Core\CTFAK.Core\CTFAK.Core.csproj" />
   </ItemGroup>
 </Project>

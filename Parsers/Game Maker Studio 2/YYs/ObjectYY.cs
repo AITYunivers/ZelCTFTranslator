@@ -1,4 +1,6 @@
-﻿using static ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYs.ObjectYY;
+﻿using System.Collections.Generic;
+using System.Reflection;
+using static ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYs.ObjectYY;
 
 namespace ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYs
 {
@@ -28,7 +30,7 @@ namespace ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYs
             public bool physicsStartAwake = true;
             public bool physicsKinematic = false;
             public object[] physicsShapePoints = new object[0];
-            public object[] eventList = new object[0];
+            public Event[] eventList = new Event[0];
             public object[] properties = new object[0];
             public object[] overriddenProperties = new object[0];
             public Parent parent = new Parent();
@@ -44,6 +46,23 @@ namespace ZelCTFTranslator.Parsers.Game_Maker_Studio_2.YYs
         {
             public string name = "Objects";
             public string path = "folders/Objects.yy";
+        }
+
+        public class Event
+        {
+            public string resourceType = "GMEvent";
+            public string resourceVersion = "1.0";
+            public string name = "";
+            public bool isDnD = false;
+            public int eventNum { get; set; }
+            public int eventType { get; set; }
+            public object collisionObjectId = null;
+        }
+        public class GMLFile
+        {
+            public string name { get; set; }
+            public string path { get; set; }
+            public string code { get; set; }
         }
 
     }
